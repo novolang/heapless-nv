@@ -1,0 +1,483 @@
+// heapless — fixed-capacity collections for the tier that has no
+// allocator: a bounded vector, a bounded UTF-8 buffer, a bounded FIFO
+// and a bounded linear-probing map.
+//
+// Every body is a `todo()`.  The signatures are the design, and the
+// compiler checks them as claims; see the README for the stamp.
+//
+// WHAT A COLLECTION IS HERE.  Four `@value` structs of two or three
+// integers each, and the rules that keep them consistent.  A collection
+// holds the BOOKKEEPING and the caller holds the STORAGE: every
+// operation that would write answers the slot index to write at, and a
+// second, total function answers the collection after that write
+// happened.  So `push` is two calls rather than one:
+//
+//     match heapless.vec_push_at(v)
+//         None     => dropped = dropped + 1
+//         Some(at) =>
+//             buf = bytes.set_u8(buf, at, b)
+//             v = heapless.vec_pushed(v)
+//
+// WHY IT IS SHAPED THAT WAY, and not as a container that owns its
+// elements.  A `@value` struct is built whole and replaced whole
+// (SPEC § 14.3) — there is no field assignment, not into a `[T; N]`
+// element either — so a vector that owned `[u8; 256]` would copy 256
+// bytes per push.  And a `@value` struct takes no type parameters and
+// there are no const generics, so `Vec<T, N>` has no spelling at all:
+// each element type and each capacity would be a type of its own.  The
+// README says what the language would need; this is what the language
+// has.
+//
+// The split is not only a retreat.  Because the storage is the
+// caller's, one `BoundedMap` serves keys of any type — the caller
+// compares them — and one `BoundedVec` serves a `Bytes` on a host and a
+// static region on a device, which a container owning `[T; N]` could
+// not do.
+//
+// NOTHING PANICS ON A FULL CONTAINER.  That is heapless's own rule and
+// it is kept: every operation that can fail answers `?Int`, `None`
+// meaning "there is no room" or "there is nothing there".  The item the
+// caller was going to write is still the caller's, because it was never
+// handed over — which is the novo-lang spelling of heapless returning
+// the item back in the `Err`.
+
+// ── The bounded vector ──────────────────────────────────────────────
+
+// A vector of at most `cap` elements, as its length and nothing else.
+//
+// The elements live in a buffer the caller owns; slot `i` of that
+// buffer is element `i` of this vector, for `i` in `0..len`.  That flat
+// mapping is what makes the vector the cheap one of the four: every
+// query is a comparison.
+pub @value
+struct BoundedVec
+    cap: Int
+    len: Int
+
+// A fresh vector over a caller's buffer of `cap` slots.
+//
+// ```novo
+// use heapless
+//
+// fn main() [io]
+//     let v = heapless.vec(8)
+//     println("${heapless.vec_len(v)} ${heapless.vec_capacity(v)}")   // 0 8
+// ```
+pub fn vec(cap: Int) -> BoundedVec
+    todo("heapless.vec")
+
+// The slot to write the next element into, or `None` when the vector is
+// full.
+//
+// `None` is the whole failure mode, and it does not consume anything:
+// the element the caller meant to write is still the caller's, which is
+// what heapless's `Err(item)` is for.  Asking twice answers twice.
+//
+// ```novo
+// use heapless
+//
+// fn main() [io]
+//     match heapless.vec_push_at(heapless.vec(2))
+//         None     => println("full")
+//         Some(at) => println("${at}")   // 0
+// ```
+pub fn vec_push_at(v: BoundedVec) -> ?Int
+    todo("heapless.vec_push_at")
+
+// The vector after an element was written at the slot `vec_push_at`
+// answered.
+//
+// Calling this without having written is not an error this package can
+// see — the storage is the caller's — and it is the one discipline a
+// caller of this package has to keep.  It is the same discipline
+// `bbqueue.commit` asks for, and for the same reason.
+pub fn vec_pushed(v: BoundedVec) -> BoundedVec
+    todo("heapless.vec_pushed")
+
+// The slot holding the last element, or `None` when the vector is
+// empty.
+//
+// The caller reads there, and then calls `vec_popped`.  Two calls
+// rather than one because the element never passes through this
+// package.
+pub fn vec_pop_at(v: BoundedVec) -> ?Int
+    todo("heapless.vec_pop_at")
+
+// The vector after its last element was taken.
+pub fn vec_popped(v: BoundedVec) -> BoundedVec
+    todo("heapless.vec_popped")
+
+// The slot holding element `i`, or `None` when `i` is not in `0..len`.
+//
+// A bounds check that answers rather than panics, because a caller
+// walking a vector whose length it did not just read is the case this
+// is for.  Indexing a slot the caller already knows is in range is the
+// caller's own arithmetic and needs no call.
+pub fn vec_at(v: BoundedVec, i: Int) -> ?Int
+    todo("heapless.vec_at")
+
+// The slot to move the LAST element into, so that element `i` is
+// removed in constant time — or `None` when `i` is not in `0..len`.
+//
+// heapless's `swap_remove`, split the same way as the rest: the answer
+// is the destination slot, the caller does the move, and `vec_popped`
+// records that the vector is one shorter.  Order is not preserved and
+// that is the trade the function exists for.
+pub fn vec_swap_remove_at(v: BoundedVec, i: Int) -> ?Int
+    todo("heapless.vec_swap_remove_at")
+
+// The vector with `n` elements, or unchanged when `n` is not shorter.
+//
+// Truncation needs no slot, because nothing is written: the elements
+// past `n` are still in the caller's buffer and are simply no longer
+// this vector's.  A caller that has to erase them does so itself, which
+// is the honest place for a decision about secrets.
+pub fn vec_truncated(v: BoundedVec, n: Int) -> BoundedVec
+    todo("heapless.vec_truncated")
+
+// The vector with nothing in it, over the same capacity.
+pub fn vec_cleared(v: BoundedVec) -> BoundedVec
+    todo("heapless.vec_cleared")
+
+// How many elements the vector holds.
+pub fn vec_len(v: BoundedVec) -> Int
+    todo("heapless.vec_len")
+
+// How many it can hold.
+pub fn vec_capacity(v: BoundedVec) -> Int
+    todo("heapless.vec_capacity")
+
+// True when no further element fits.
+pub fn vec_is_full(v: BoundedVec) -> Bool
+    todo("heapless.vec_is_full")
+
+// True when the vector holds nothing.
+pub fn vec_is_empty(v: BoundedVec) -> Bool
+    todo("heapless.vec_is_empty")
+
+// ── The bounded UTF-8 buffer ────────────────────────────────────────
+
+// A UTF-8 buffer of at most `cap` BYTES, as its byte length.
+//
+// It is a separate type from `BoundedVec` and not a use of one, because
+// the rule is different and the rule is the whole content: a code point
+// goes in whole or it does not go in.  A buffer that let a caller write
+// three bytes of a four-byte character and then ran out would hold
+// something that is not UTF-8, and the one place that matters most is
+// the one this is for — a logger truncating a message at the end of a
+// fixed buffer.
+pub @value
+struct BoundedStr
+    cap: Int
+    len: Int
+
+// A fresh buffer over a caller's `cap` bytes.
+pub fn bounded_str(cap: Int) -> BoundedStr
+    todo("heapless.bounded_str")
+
+// How many bytes the code point starting with `lead` occupies: 1, 2, 3
+// or 4 — or 0 when `lead` is a continuation byte or a value UTF-8 never
+// uses as a lead.
+//
+// Published because it is the rule the type's guarantee rests on, and a
+// caller that has to size its own write needs it too.
+//
+// ```novo
+// use heapless
+//
+// fn main() [io]
+//     println("${heapless.str_seq_len(0x41 as u8)}")   // 1
+//     println("${heapless.str_seq_len(0xE2 as u8)}")   // 3
+//     println("${heapless.str_seq_len(0x80 as u8)}")   // 0
+// ```
+pub fn str_seq_len(lead: u8) -> Int
+    todo("heapless.str_seq_len")
+
+// The slot to write a code point beginning with `lead` at, or `None`
+// when the whole code point does not fit — or when `lead` is not a lead
+// byte at all.
+//
+// The caller then writes `str_seq_len(lead)` bytes from that slot on.
+// The answer is all-or-nothing, which is what keeps the buffer valid
+// UTF-8 at every point a reader could look at it.
+//
+// ```novo
+// use heapless
+//
+// fn main() [io]
+//     // Two bytes of room, a three-byte character: no.
+//     match heapless.str_push_at(heapless.bounded_str(2), 0xE2 as u8)
+//         None     => println("does not fit")
+//         Some(at) => println("${at}")
+// ```
+pub fn str_push_at(s: BoundedStr, lead: u8) -> ?Int
+    todo("heapless.str_push_at")
+
+// The buffer after a code point beginning with `lead` was written at
+// the slot `str_push_at` answered.
+pub fn str_pushed(s: BoundedStr, lead: u8) -> BoundedStr
+    todo("heapless.str_pushed")
+
+// The buffer with nothing in it, over the same capacity.
+pub fn str_cleared(s: BoundedStr) -> BoundedStr
+    todo("heapless.str_cleared")
+
+// How many bytes the buffer holds.
+//
+// Bytes and not characters: a caller that wants characters counts the
+// lead bytes it wrote, which is cheaper than anything this package
+// could do without reading the storage it does not own.
+pub fn str_len(s: BoundedStr) -> Int
+    todo("heapless.str_len")
+
+// How many bytes it can hold.
+pub fn str_capacity(s: BoundedStr) -> Int
+    todo("heapless.str_capacity")
+
+// How many bytes are still free.
+//
+// Published because "will the next character fit" is the question this
+// type exists to answer and a caller may want to ask it about a
+// character it has not read yet.
+pub fn str_remaining(s: BoundedStr) -> Int
+    todo("heapless.str_remaining")
+
+// True when no code point of any length fits.
+pub fn str_is_full(s: BoundedStr) -> Bool
+    todo("heapless.str_is_full")
+
+// True when the buffer holds nothing.
+pub fn str_is_empty(s: BoundedStr) -> Bool
+    todo("heapless.str_is_empty")
+
+// ── The bounded FIFO ────────────────────────────────────────────────
+
+// A first-in first-out queue of at most `cap` elements, as the slot its
+// front sits in and how many follow.
+//
+// This is `ringbuf-nv`'s row from the must-have plan — "heapless's
+// single-producer queue" — living here rather than in a package of its
+// own, because it IS heapless's queue and a second port of the same
+// upstream type would be two things to keep in step.
+//
+// It is not `bbqueue-nv`.  This one moves ELEMENTS one at a time, and
+// wraps by index arithmetic; that one moves BYTES in contiguous runs,
+// and wraps by a watermark so that a frame is never split.  A caller
+// enqueuing sensor readings wants this; a caller writing a log frame
+// out of an interrupt wants that.
+pub @value
+struct BoundedFifo
+    cap: Int
+    head: Int
+    len: Int
+
+// A fresh queue over a caller's buffer of `cap` slots.
+pub fn fifo(cap: Int) -> BoundedFifo
+    todo("heapless.fifo")
+
+// The slot to write the next element into, or `None` when the queue is
+// full.
+//
+// ```novo
+// use heapless
+//
+// fn main() [io]
+//     match heapless.fifo_enqueue_at(heapless.fifo(4))
+//         None     => println("full")
+//         Some(at) => println("${at}")   // 0
+// ```
+pub fn fifo_enqueue_at(f: BoundedFifo) -> ?Int
+    todo("heapless.fifo_enqueue_at")
+
+// The queue after an element was written at the slot
+// `fifo_enqueue_at` answered.
+pub fn fifo_enqueued(f: BoundedFifo) -> BoundedFifo
+    todo("heapless.fifo_enqueued")
+
+// The slot holding the front element, or `None` when the queue is
+// empty.
+//
+// The same answer `fifo_peek_at` gives; the pair exists so that a
+// caller reading and then removing says both, and a caller only looking
+// says only the one it meant.
+pub fn fifo_dequeue_at(f: BoundedFifo) -> ?Int
+    todo("heapless.fifo_dequeue_at")
+
+// The queue after its front element was taken.
+pub fn fifo_dequeued(f: BoundedFifo) -> BoundedFifo
+    todo("heapless.fifo_dequeued")
+
+// The slot holding the front element without taking it, or `None` when
+// the queue is empty.
+pub fn fifo_peek_at(f: BoundedFifo) -> ?Int
+    todo("heapless.fifo_peek_at")
+
+// The slot holding the `i`th element from the front, or `None` when `i`
+// is not in `0..len`.
+//
+// A queue's storage wraps, so the `i`th element is not at slot `i` and
+// a caller cannot compute it without knowing where the front is.  This
+// is that arithmetic, and it is the reason `head` is a field rather
+// than something the caller tracks.
+pub fn fifo_at(f: BoundedFifo, i: Int) -> ?Int
+    todo("heapless.fifo_at")
+
+// The queue with nothing in it, over the same capacity.
+pub fn fifo_cleared(f: BoundedFifo) -> BoundedFifo
+    todo("heapless.fifo_cleared")
+
+// How many elements the queue holds.
+pub fn fifo_len(f: BoundedFifo) -> Int
+    todo("heapless.fifo_len")
+
+// How many it can hold.
+pub fn fifo_capacity(f: BoundedFifo) -> Int
+    todo("heapless.fifo_capacity")
+
+// True when no further element fits.
+pub fn fifo_is_full(f: BoundedFifo) -> Bool
+    todo("heapless.fifo_is_full")
+
+// True when the queue holds nothing.
+pub fn fifo_is_empty(f: BoundedFifo) -> Bool
+    todo("heapless.fifo_is_empty")
+
+// ── The bounded map ─────────────────────────────────────────────────
+
+// An open-addressed map of at most `cap` slots, as its live and dead
+// counts.
+//
+// `cap` is a power of two, which is what turns the probe's modulo into
+// a mask — the reason heapless's map requires one too.  `len` counts
+// live entries; `dead` counts slots a removal emptied, which still
+// occupy a probe chain and so still cost lookups.
+//
+// The KEYS AND VALUES ARE THE CALLER'S, in two of its own buffers, and
+// so is the comparison.  That is what lets one map serve keys this
+// package could not otherwise be generic over — a `@value` struct
+// cannot take a type parameter (SPEC § 14.2) — and it is why a lookup
+// here is a loop the caller writes with `map_slot` rather than a call
+// that answers a value.
+pub @value
+struct BoundedMap
+    cap: Int
+    len: Int
+    dead: Int
+
+// The capacity a map must be built at to hold `n` entries: the next
+// power of two at or above `n * 2`.
+//
+// Open addressing degrades sharply as a table fills — the probe chains
+// join up — so a map sized to its contents is a map that spends its
+// life at the worst part of the curve.  Doubling is the load factor
+// heapless picks and this keeps it, in a function rather than in a
+// comment so that a caller sizing a static buffer gets the same answer.
+//
+// ```novo
+// use heapless
+//
+// fn main() [io]
+//     println("${heapless.map_capacity_for(3)}")    // 8
+//     println("${heapless.map_capacity_for(10)}")   // 32
+// ```
+pub fn map_capacity_for(n: Int) -> Int
+    todo("heapless.map_capacity_for")
+
+// A fresh map over a caller's `cap` slots.
+//
+// `cap` must be a power of two; anything else is a panic, because a map
+// built on a capacity that is not one would probe wrongly forever and a
+// value answered later is worse than a program stopped now.
+// `map_capacity_for` is how a caller gets a legal one.
+pub fn map(cap: Int) -> BoundedMap
+    todo("heapless.map")
+
+// The slot to examine on the `probe`th step of a lookup or an insert,
+// for a key whose hash is `hash`.
+//
+// Linear probing: `(hash + probe) & (cap - 1)`.  The caller walks
+// `probe` from 0 upwards, comparing its own keys, and stops at a match,
+// at an empty slot, or when `probe` reaches `map_max_probes`.
+//
+// The walk is the caller's rather than this package's because the
+// comparison is: a map that owned it would have to own the keys, and a
+// `@value` struct cannot be generic over a key type.
+//
+// ```novo
+// use heapless
+//
+// fn main() [io]
+//     let m = heapless.map(8)
+//     println("${heapless.map_slot(m, 5, 0)} ${heapless.map_slot(m, 5, 1)}")   // 5 6
+//     // And it wraps at the capacity, which is what the mask is for.
+//     println("${heapless.map_slot(m, 7, 2)}")   // 1
+// ```
+pub fn map_slot(m: BoundedMap, hash: Int, probe: Int) -> Int
+    todo("heapless.map_slot")
+
+// How many probes a caller must make before concluding that a key is
+// absent.
+//
+// The capacity: with linear probing and no tombstone skipping, a chain
+// can in the worst case cover the whole table.  A caller that stops
+// earlier can miss an entry that is there, which is the bug this
+// function exists to prevent.
+pub fn map_max_probes(m: BoundedMap) -> Int
+    todo("heapless.map_max_probes")
+
+// The map after an entry was written into a slot that held none.
+//
+// Not after an entry was OVERWRITTEN — that changes nothing this
+// struct counts, and a caller that called this for one would report a
+// map fuller than it is.
+pub fn map_inserted(m: BoundedMap) -> BoundedMap
+    todo("heapless.map_inserted")
+
+// The map after a live entry was turned into a tombstone.
+//
+// A removal in an open-addressed table cannot simply empty its slot:
+// the slot may be in the middle of another key's probe chain, and
+// emptying it would hide everything after it.  So a removal leaves a
+// marker the caller writes and this counts, and the count is what
+// `map_needs_rehash` reads.
+pub fn map_removed(m: BoundedMap) -> BoundedMap
+    todo("heapless.map_removed")
+
+// True when tombstones have taken enough of the table that lookups are
+// paying for entries that are gone.
+//
+// A caller that sees this rebuilds the table into a fresh one — walk
+// the live entries, insert each into a `map(cap)` — and the dead count
+// returns to zero.  Published as a question rather than done here,
+// because rehashing moves the caller's keys and values and this package
+// does not have them.
+pub fn map_needs_rehash(m: BoundedMap) -> Bool
+    todo("heapless.map_needs_rehash")
+
+// The map with nothing in it, over the same capacity.
+pub fn map_cleared(m: BoundedMap) -> BoundedMap
+    todo("heapless.map_cleared")
+
+// How many live entries the map holds.
+pub fn map_len(m: BoundedMap) -> Int
+    todo("heapless.map_len")
+
+// How many slots it has.
+pub fn map_capacity(m: BoundedMap) -> Int
+    todo("heapless.map_capacity")
+
+// How many slots hold a tombstone.
+pub fn map_dead(m: BoundedMap) -> Int
+    todo("heapless.map_dead")
+
+// True when no further entry can be inserted.
+//
+// Live entries plus tombstones, not live entries alone: a tombstone
+// occupies a slot until a rehash, so a table of them is full even
+// though `map_len` says otherwise.
+pub fn map_is_full(m: BoundedMap) -> Bool
+    todo("heapless.map_is_full")
+
+// True when the map holds no live entry.
+pub fn map_is_empty(m: BoundedMap) -> Bool
+    todo("heapless.map_is_empty")

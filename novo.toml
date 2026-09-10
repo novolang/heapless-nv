@@ -1,0 +1,32 @@
+[package]
+name        = "heapless-nv"
+version     = "0.0.1"
+description = "Fixed-capacity collections for the tier that has no allocator: a bounded vector, a bounded UTF-8 buffer, a bounded FIFO and a bounded linear-probing map.  Each is a @value struct of two or three integers; the storage is the caller's, and nothing panics on a full container.  Interface only — every body is a todo()."
+license     = "Apache-2.0"
+
+# An INTERFACE release: every `pub fn` body is a `todo()`, so the
+# signatures and the effect rows are published and nothing is
+# implemented.  `novo pkg publish` recognises the shape and requires
+# both the draft stability and the 0.0.x version; the first
+# implementation is the 0.1.0 published over it.
+stability   = "draft"
+
+# `core`: index arithmetic over buffers the caller owns.  Every function
+# is total, from values to values, and none of them reads or writes a
+# byte — so there is no effect to declare and the whole surface compiles
+# for a device.
+layer       = "core"
+
+category    = "embedded"
+
+tags        = ["heapless", "no-alloc", "fixed-capacity", "vec", "fifo", "spsc", "map", "linear-probing", "embedded", "sans-io"]
+repository  = "https://github.com/novolang/heapless-nv"
+maintainers = ["novo-lang"]
+novo        = ">= 0.8.9"
+
+[docs.pages]
+"README.md" = "Collections with a ceiling, for a program with no allocator"
+
+[dependencies]
+# None.  Bookkeeping over indices needs the language and nothing else,
+# which is the property that lets the whole surface link for a Cortex-M.

@@ -1,0 +1,303 @@
+// tests/heapless_tests.nv — the API tests, written against the
+// signatures.
+//
+// They COMPILE today and they FAIL at run, with `not implemented:
+// heapless.<fn>` from the `todo()` that is each body.  That is the
+// expected state of an interface release: the compiler has checked
+// every signature, every type and every effect row, and nothing else
+// has been checked because there is nothing else yet.
+//
+// The storage is a real `Bytes` here, so the tests read like a caller
+// rather than like index arithmetic: the collection answers where to
+// write, and the test writes there.  That two-step IS the contract, and
+// writing it out is the only way to check it.
+
+use std.test
+use std.bytes
+use heapless
+
+// ── The bounded vector ──────────────────────────────────────────────
+
+@test
+fn test_a_fresh_vector_is_empty()
+    let v = heapless.vec(8)
+    test.assert_eq(heapless.vec_len(v), 0)
+    test.assert_eq(heapless.vec_capacity(v), 8)
+    test.assert_true(heapless.vec_is_empty(v), "a fresh vector holds nothing")
+    test.assert_false(heapless.vec_is_full(v), "a fresh vector is not full")
+
+@test
+fn test_pushing_is_a_slot_and_then_a_record_of_the_write()
+    var buf = bytes.zeros(4)
+    var v = heapless.vec(4)
+    match heapless.vec_push_at(v)
+        None     => test.fail("an empty vector of four has room")
+        Some(at) =>
+            test.assert_eq(at, 0)
+            buf = bytes.set_u8(buf, at, 0xAB)
+            v = heapless.vec_pushed(v)
+    test.assert_eq(heapless.vec_len(v), 1)
+    // The element is in the caller's buffer, which is the whole point:
+    // it never passed through the package.
+    test.assert_eq(bytes.byte_at(buf, 0) ?? 0, 0xAB)
+    // And the second slot follows the first.
+    match heapless.vec_push_at(v)
+        None     => test.fail("one of four leaves three")
+        Some(at) => test.assert_eq(at, 1)
+
+@test
+fn test_a_full_vector_answers_none_and_keeps_the_item()
+    // heapless's rule, in the shape novo-lang gives it: the item was
+    // never handed over, so there is nothing to hand back.
+    var v = heapless.vec(2)
+    v = heapless.vec_pushed(v)
+    v = heapless.vec_pushed(v)
+    test.assert_true(heapless.vec_is_full(v), "two of two is full")
+    test.assert_none(heapless.vec_push_at(v))
+    // Asking did not consume: the vector is what it was.
+    test.assert_eq(heapless.vec_len(v), 2)
+
+@test
+fn test_popping_answers_the_last_slot()
+    var v = heapless.vec(4)
+    v = heapless.vec_pushed(v)
+    v = heapless.vec_pushed(v)
+    match heapless.vec_pop_at(v)
+        None     => test.fail("two elements have a last one")
+        Some(at) => test.assert_eq(at, 1)
+    v = heapless.vec_popped(v)
+    test.assert_eq(heapless.vec_len(v), 1)
+    // And an empty vector has nothing to answer.
+    test.assert_none(heapless.vec_pop_at(heapless.vec(4)))
+
+@test
+fn test_indexing_answers_rather_than_panics()
+    var v = heapless.vec(4)
+    v = heapless.vec_pushed(v)
+    test.assert_some(heapless.vec_at(v, 0))
+    test.assert_none(heapless.vec_at(v, 1))
+    test.assert_none(heapless.vec_at(v, 0 - 1))
+
+@test
+fn test_swap_remove_answers_the_destination_slot()
+    // Constant-time removal at the cost of order: the last element goes
+    // where the removed one was, and the caller does the move.
+    var v = heapless.vec(4)
+    for i in 0..3
+        v = heapless.vec_pushed(v)
+    match heapless.vec_swap_remove_at(v, 0)
+        None     => test.fail("index 0 of three is in range")
+        Some(at) => test.assert_eq(at, 0)
+    test.assert_none(heapless.vec_swap_remove_at(v, 3))
+
+@test
+fn test_truncating_writes_nothing()
+    var v = heapless.vec(8)
+    for i in 0..5
+        v = heapless.vec_pushed(v)
+    v = heapless.vec_truncated(v, 2)
+    test.assert_eq(heapless.vec_len(v), 2)
+    // Truncating to a length that is not shorter changes nothing.
+    v = heapless.vec_truncated(v, 6)
+    test.assert_eq(heapless.vec_len(v), 2)
+    test.assert_eq(heapless.vec_len(heapless.vec_cleared(v)), 0)
+
+// ── The bounded UTF-8 buffer ────────────────────────────────────────
+
+@test
+fn test_the_lead_byte_says_how_long_the_code_point_is()
+    test.assert_eq(heapless.str_seq_len(0x41 as u8), 1)
+    test.assert_eq(heapless.str_seq_len(0xC3 as u8), 2)
+    test.assert_eq(heapless.str_seq_len(0xE2 as u8), 3)
+    test.assert_eq(heapless.str_seq_len(0xF0 as u8), 4)
+    // A continuation byte is not a lead byte.
+    test.assert_eq(heapless.str_seq_len(0x80 as u8), 0)
+    // Nor are the two values UTF-8 never uses.
+    test.assert_eq(heapless.str_seq_len(0xFE as u8), 0)
+    test.assert_eq(heapless.str_seq_len(0xFF as u8), 0)
+
+@test
+fn test_a_code_point_goes_in_whole_or_not_at_all()
+    // The guarantee this type exists for, and the case a logger
+    // truncating at a buffer's end runs into every day.
+    let s = heapless.bounded_str(2)
+    // One ASCII byte fits.
+    test.assert_some(heapless.str_push_at(s, 0x41 as u8))
+    // A three-byte character into two bytes of room does not — and the
+    // answer is None rather than a slot and a half-written character.
+    test.assert_none(heapless.str_push_at(s, 0xE2 as u8))
+    // A two-byte one fits exactly.
+    test.assert_some(heapless.str_push_at(s, 0xC3 as u8))
+
+@test
+fn test_writing_a_character_advances_by_its_length()
+    var s = heapless.bounded_str(8)
+    test.assert_eq(heapless.str_capacity(s), 8)
+    match heapless.str_push_at(s, 0xE2 as u8)
+        None     => test.fail("three bytes fit in eight")
+        Some(at) => test.assert_eq(at, 0)
+    s = heapless.str_pushed(s, 0xE2 as u8)
+    // Three bytes, not one: the length is bytes and the lead byte said
+    // how many.
+    test.assert_eq(heapless.str_len(s), 3)
+    test.assert_eq(heapless.str_remaining(s), 5)
+    match heapless.str_push_at(s, 0x41 as u8)
+        None     => test.fail("five bytes are left")
+        Some(at) => test.assert_eq(at, 3)
+
+@test
+fn test_a_buffer_with_no_room_for_any_character_is_full()
+    var s = heapless.bounded_str(1)
+    s = heapless.str_pushed(s, 0x41 as u8)
+    test.assert_true(heapless.str_is_full(s), "one of one is full")
+    test.assert_none(heapless.str_push_at(s, 0x41 as u8))
+    test.assert_true(heapless.str_is_empty(heapless.str_cleared(s)),
+                     "clearing empties the buffer")
+
+@test
+fn test_a_continuation_byte_is_refused_as_a_lead()
+    // A caller feeding bytes rather than characters would otherwise
+    // write a continuation byte where a character should start.
+    test.assert_none(heapless.str_push_at(heapless.bounded_str(8), 0x80 as u8))
+
+// ── The bounded FIFO ────────────────────────────────────────────────
+
+@test
+fn test_a_fresh_queue_is_empty()
+    let f = heapless.fifo(4)
+    test.assert_eq(heapless.fifo_len(f), 0)
+    test.assert_eq(heapless.fifo_capacity(f), 4)
+    test.assert_true(heapless.fifo_is_empty(f), "a fresh queue holds nothing")
+    test.assert_none(heapless.fifo_dequeue_at(f))
+    test.assert_none(heapless.fifo_peek_at(f))
+
+@test
+fn test_the_queue_is_first_in_first_out()
+    var buf = bytes.zeros(4)
+    var f = heapless.fifo(4)
+    for i in 0..3
+        match heapless.fifo_enqueue_at(f)
+            None     => test.fail("three fit in four")
+            Some(at) =>
+                buf = bytes.set_u8(buf, at, 0xA0 + i)
+                f = heapless.fifo_enqueued(f)
+    test.assert_eq(heapless.fifo_len(f), 3)
+    // The front is the first one written.
+    match heapless.fifo_dequeue_at(f)
+        None     => test.fail("three elements have a front")
+        Some(at) => test.assert_eq(bytes.byte_at(buf, at) ?? 0, 0xA0)
+    f = heapless.fifo_dequeued(f)
+    match heapless.fifo_dequeue_at(f)
+        None     => test.fail("two are left")
+        Some(at) => test.assert_eq(bytes.byte_at(buf, at) ?? 0, 0xA1)
+
+@test
+fn test_the_storage_wraps_and_the_caller_never_computes_it()
+    // Four slots, three enqueued, three dequeued, then two more: the
+    // second pair lands at slots 3 and 0.  That the caller cannot work
+    // this out from an index alone is why `head` is a field here.
+    var f = heapless.fifo(4)
+    for i in 0..3
+        f = heapless.fifo_enqueued(f)
+    for i in 0..3
+        f = heapless.fifo_dequeued(f)
+    match heapless.fifo_enqueue_at(f)
+        None     => test.fail("an empty queue has room")
+        Some(at) => test.assert_eq(at, 3)
+    f = heapless.fifo_enqueued(f)
+    match heapless.fifo_enqueue_at(f)
+        None     => test.fail("three slots are free")
+        Some(at) => test.assert_eq(at, 0)
+
+@test
+fn test_the_ith_element_from_the_front_accounts_for_the_wrap()
+    var f = heapless.fifo(4)
+    for i in 0..3
+        f = heapless.fifo_enqueued(f)
+    f = heapless.fifo_dequeued(f)
+    f = heapless.fifo_dequeued(f)
+    f = heapless.fifo_enqueued(f)
+    f = heapless.fifo_enqueued(f)
+    // Front at slot 2, four elements? No — three: slots 2, 3, 0.
+    test.assert_eq(heapless.fifo_len(f), 3)
+    match heapless.fifo_at(f, 0)
+        None     => test.fail("element 0 is there")
+        Some(at) => test.assert_eq(at, 2)
+    match heapless.fifo_at(f, 2)
+        None     => test.fail("element 2 is there")
+        Some(at) => test.assert_eq(at, 0)
+    test.assert_none(heapless.fifo_at(f, 3))
+
+@test
+fn test_a_full_queue_answers_none()
+    var f = heapless.fifo(2)
+    f = heapless.fifo_enqueued(f)
+    f = heapless.fifo_enqueued(f)
+    test.assert_true(heapless.fifo_is_full(f), "two of two is full")
+    test.assert_none(heapless.fifo_enqueue_at(f))
+    test.assert_true(heapless.fifo_is_empty(heapless.fifo_cleared(f)),
+                     "clearing empties the queue")
+
+// ── The bounded map ─────────────────────────────────────────────────
+
+@test
+fn test_the_capacity_is_a_power_of_two_at_twice_the_entries()
+    // Open addressing degrades as a table fills, so a map sized to its
+    // contents lives at the worst part of the curve.  The doubling is a
+    // function rather than a comment so that a caller sizing a static
+    // buffer gets the same answer this package will.
+    test.assert_eq(heapless.map_capacity_for(1), 2)
+    test.assert_eq(heapless.map_capacity_for(3), 8)
+    test.assert_eq(heapless.map_capacity_for(4), 8)
+    test.assert_eq(heapless.map_capacity_for(10), 32)
+
+@test
+fn test_probing_is_linear_and_masks_rather_than_divides()
+    let m = heapless.map(8)
+    test.assert_eq(heapless.map_slot(m, 5, 0), 5)
+    test.assert_eq(heapless.map_slot(m, 5, 1), 6)
+    test.assert_eq(heapless.map_slot(m, 5, 2), 7)
+    // And it wraps, which is what the power-of-two capacity buys.
+    test.assert_eq(heapless.map_slot(m, 7, 1), 0)
+    test.assert_eq(heapless.map_slot(m, 7, 2), 1)
+    // A hash wider than the table is masked, not divided.
+    test.assert_eq(heapless.map_slot(m, 0x1234, 0), 0x1234 % 8)
+
+@test
+fn test_a_lookup_must_be_willing_to_walk_the_whole_table()
+    // Stopping early misses an entry that is there, which is the bug
+    // this number exists to prevent.
+    let m = heapless.map(8)
+    test.assert_eq(heapless.map_max_probes(m), 8)
+    test.assert_eq(heapless.map_capacity(m), 8)
+
+@test
+fn test_a_removal_leaves_a_tombstone_that_still_costs()
+    var m = heapless.map(8)
+    m = heapless.map_inserted(m)
+    m = heapless.map_inserted(m)
+    test.assert_eq(heapless.map_len(m), 2)
+    test.assert_eq(heapless.map_dead(m), 0)
+    m = heapless.map_removed(m)
+    // One live entry, one slot still occupied by a marker.
+    test.assert_eq(heapless.map_len(m), 1)
+    test.assert_eq(heapless.map_dead(m), 1)
+    test.assert_false(heapless.map_is_empty(m), "one entry is still live")
+
+@test
+fn test_a_table_of_tombstones_is_full_though_it_holds_nothing()
+    // The property that makes `map_is_full` a function rather than
+    // `len == capacity`: a tombstone occupies a slot until a rehash.
+    var m = heapless.map(2)
+    m = heapless.map_inserted(m)
+    m = heapless.map_inserted(m)
+    m = heapless.map_removed(m)
+    m = heapless.map_removed(m)
+    test.assert_eq(heapless.map_len(m), 0)
+    test.assert_true(heapless.map_is_empty(m), "no live entry is left")
+    test.assert_true(heapless.map_is_full(m), "and yet no slot is free")
+    test.assert_true(heapless.map_needs_rehash(m), "the table is all markers")
+    // Rebuilding is the caller's, because the keys are the caller's.
+    let fresh = heapless.map_cleared(m)
+    test.assert_eq(heapless.map_dead(fresh), 0)
+    test.assert_false(heapless.map_is_full(fresh), "a cleared table has room")
