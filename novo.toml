@@ -1,6 +1,6 @@
 [package]
 name        = "heapless-nv"
-version     = "0.0.1"
+version     = "0.0.2"
 description = "Fixed-capacity collections for the tier that has no allocator: a bounded vector, a bounded UTF-8 buffer, a bounded FIFO and a bounded linear-probing map.  Each is a @value struct of two or three integers; the storage is the caller's, and nothing panics on a full container.  Interface only — every body is a todo()."
 license     = "Apache-2.0"
 
