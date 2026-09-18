@@ -8,6 +8,13 @@ consumer deciding whether to upgrade can read.
 
 README rewritten to the package README style guide (docs/writing-a-readme.md); no change to the interface.
 
+- The README's question-and-record snippet is a whole program now.  It
+  used `v`, `buf`, `b` and `dropped` without binding any of them, so
+  `novo doc` could not compile it (`E2003`) and `novo pkg publish`
+  refused the release over it.  It builds its storage with
+  `bytes.zeros` and its vector with `heapless.vec` before the pair of
+  calls it is there to show.
+
 ## 0.0.1 — 2026-09-10
 
 The **interface**, before anyone implements it.  Every signature, every

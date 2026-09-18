@@ -35,11 +35,22 @@ element goes and answers nothing when there is no room. The caller writes it
 there. The second records that the write happened.
 
 ```novo
-match heapless.vec_push_at(v)
-    None     => dropped = dropped + 1
-    Some(at) =>
-        buf = bytes.set_u8(buf, at, b)
-        v = heapless.vec_pushed(v)
+use std.bytes
+use heapless
+
+fn main() [io]
+    var buf = bytes.zeros(4)      // the caller's storage
+    var v = heapless.vec(4)       // the bookkeeping
+    var dropped = 0
+    let b: u8 = 0xAB
+
+    match heapless.vec_push_at(v)
+        None     => dropped = dropped + 1
+        Some(at) =>
+            buf = bytes.set_u8(buf, at, b)
+            v = heapless.vec_pushed(v)
+
+    println("${heapless.vec_len(v)} in, ${dropped} dropped")
 ```
 
 The **map** is an open-addressed table with **linear probing**: a key hashes
