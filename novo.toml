@@ -1,14 +1,15 @@
 [package]
 name        = "heapless-nv"
-version     = "0.0.2"
-description = "Fixed-capacity collections for the tier that has no allocator: a bounded vector, a bounded UTF-8 buffer, a bounded FIFO and a bounded linear-probing map.  Each is a @value struct of two or three integers; the storage is the caller's, and nothing panics on a full container.  Interface only — every body is a todo()."
+version     = "0.0.3"
+description = "WITHDRAWN: the language's Vec[T; N], String[N], Deque[T; N] and Map[K, V; N] (SPEC section 14.8) replace the four fixed-capacity collections this package described.  Published as an interface only; every body is a todo()."
 license     = "Apache-2.0"
 
-# An INTERFACE release: every `pub fn` body is a `todo()`, so the
-# signatures and the effect rows are published and nothing is
-# implemented.  `novo pkg publish` recognises the shape and requires
-# both the draft stability and the 0.0.x version; the first
-# implementation is the 0.1.0 published over it.
+# WITHDRAWN, and still an INTERFACE release: every `pub fn` body is a
+# `todo()`.  `novo pkg publish` recognises the shape and requires both
+# the draft stability and the 0.0.x version.  The four stability values
+# have none for a withdrawn package, and `draft` promises nothing, so it
+# stays.  No 0.1.0 will follow: the language's fixed-capacity family
+# (SPEC section 14.8) replaces the package.
 stability   = "draft"
 
 # `core`: index arithmetic over buffers the caller owns.  Every function
@@ -25,7 +26,7 @@ maintainers = ["novo-lang"]
 novo        = ">= 0.8.9"
 
 [docs.pages]
-"README.md" = "Collections with a ceiling, for a program with no allocator"
+"README.md" = "Withdrawn: the language's fixed-capacity family replaces this package"
 
 [dependencies]
 # None.  Bookkeeping over indices needs the language and nothing else,

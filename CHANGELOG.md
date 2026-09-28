@@ -4,6 +4,23 @@ Every published version, newest first. This file is on the publish
 allow-list, so it travels with the package: it is the only thing a
 consumer deciding whether to upgrade can read.
 
+## 0.0.3 — 2026-09-29
+
+**Withdrawn.**  The language now has `Vec[T; N]`, `String[N]`,
+`Deque[T; N]` and `Map[K, V; N]` (SPEC section 14.8): fixed-capacity
+collections with the capacity in the type, the storage inline and
+`Err(Full)` at the capacity.  They replace `BoundedVec`, `BoundedStr`,
+`BoundedFifo` and `BoundedMap`, and a package cannot wrap them, so no
+0.1.0 will be published.  This release changes the README, the
+manifest's description and this file; the interface is unchanged and
+every body is still `todo()`.
+
+- The README says the package is withdrawn, names the member of the
+  family that replaces each type, and says what the family does not
+  do: `Map[K, V; N]` takes integer and `Bool` keys only.
+- The manifest keeps `stability = "draft"`, the only value an
+  interface release may carry.
+
 ## 0.0.2 — 2026-09-15
 
 README rewritten to the package README style guide (docs/writing-a-readme.md); no change to the interface.
