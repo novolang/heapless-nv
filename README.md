@@ -62,6 +62,22 @@ code point goes in whole applied to text arriving one byte at a time, and with
   dependency for its transmit queue's bookkeeping. Both are interfaces, so
   nothing breaks, and the family is what its bodies will use.
 
+## Tests
+
+The interface still builds, and its suite still runs, from a clone of this
+repository:
+
+```sh
+novo pkg build
+novo test tests/heapless_tests.nv
+```
+
+Every test fails on the `not implemented: heapless.<fn>` panic
+of the `todo()` it reaches, since no body will be written. The suite is kept
+because it records what each function was specified to do.
+`tests/embedded_probe.nv` is a program, not a test: it builds the interface
+for a Cortex-M4 target to show that no signature needs an allocator.
+
 ## Licence
 
 Apache-2.0. See `LICENSE`.
