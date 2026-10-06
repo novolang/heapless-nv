@@ -1,6 +1,6 @@
 [package]
 name        = "heapless-nv"
-version     = "0.0.3"
+version     = "0.0.4"
 description = "WITHDRAWN: the language's Vec[T; N], String[N], Deque[T; N] and Map[K, V; N] (SPEC section 14.8) replace the four fixed-capacity collections this package described.  Published as an interface only; every body is a todo()."
 license     = "Apache-2.0"
 

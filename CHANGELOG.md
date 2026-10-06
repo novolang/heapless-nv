@@ -4,6 +4,34 @@ Every published version, newest first. This file is on the publish
 allow-list, so it travels with the package: it is the only thing a
 consumer deciding whether to upgrade can read.
 
+## 0.0.4 — 2026-10-06
+
+Still withdrawn.  This release puts the withdrawal at the top of the
+generated reference, which taught the old surface without a banner.
+The interface is unchanged and every body is still `todo()`.
+
+- `novo doc` now prints the README's Status paragraph under the
+  reference's header, so the page opens on the replacement guidance:
+  `Vec[T; N]`, `String[N]`, `Deque[T; N]` and `Map[K, V; N]`,
+  SPEC section 14.8.
+- The module's header comment names the replacement for each type and
+  states that the declarations are a record.  It no longer explains a
+  design the language has since made unnecessary.
+- The README's account of why the package was withdrawn moved here.
+  The design followed from three things the language could not do when
+  it was written.  A `@value` struct took no type parameters and had no
+  constant capacity, so a capacity was an unchecked field rather than
+  part of the type.  A `@value` struct was replaced whole on every
+  change (SPEC section 14.3), so a collection that owned its elements
+  copied all of them on every write.  The package therefore kept only
+  the bookkeeping, left the storage with the caller, and made every
+  write two calls.  The family removes all three: its capacity is in
+  the type, its storage is its own, and a `var self` method (SPEC
+  section 14.7) writes in place.  A package cannot be generic over a
+  capacity, so a package cannot wrap the family.
+- The README no longer mentions can-nv.  can-nv 0.0.3 dropped its
+  dependency on this package and uses the language's collections.
+
 ## 0.0.3 — 2026-09-29
 
 **Withdrawn.**  The language now has `Vec[T; N]`, `String[N]`,

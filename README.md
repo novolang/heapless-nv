@@ -3,7 +3,7 @@
 **Status: WITHDRAWN.** Do not add this package. The four fixed-capacity
 collections it described are now part of the language: `Vec[T; N]`,
 `String[N]`, `Deque[T; N]` and `Map[K, V; N]`, specified in SPEC section 14.8
-("The heapless family"). Version 0.0.3 is the last release, and it exists to
+("The heapless family"). Version 0.0.4 is the last release, and it exists to
 say so.
 
 heapless-nv was published as an interface only. Every function was declared
@@ -25,22 +25,6 @@ in static storage for a module-level `var`. A write at the capacity answers
 `Err(Full)` and leaves the value unchanged. Building, pushing, indexing and
 iterating allocate nothing.
 
-## Why the package is withdrawn
-
-The package's design followed from three things the language could not do
-when it was written. A `@value` struct took no type parameters and had no
-constant capacity, so a capacity was an unchecked field rather than part of
-the type. A `@value` struct was replaced whole on every change (SPEC section
-14.3), so a collection that owned its elements would have copied all of them
-on every write. The package therefore kept only the bookkeeping, left the
-storage with the caller, and made every write two calls: one to ask where the
-element goes and one to record that it was written.
-
-The family removes all three. Its capacity is in the type, its storage is its
-own, and a `var self` method (SPEC section 14.7) writes in place, so `push` is
-one call. A package cannot wrap the family, because a package cannot be
-generic over a capacity, so there is nothing left for this one to do.
-
 ## What the family does not do
 
 `Map[K, V; N]` takes a key of an integer type or `Bool` only. heapless-nv's
@@ -58,9 +42,6 @@ code point goes in whole applied to text arriving one byte at a time, and with
 - [bbqueue-nv](https://novo-lang.org/packages/bbqueue-nv) is not replaced by
   the family and stays. It moves bytes a contiguous run at a time and never
   splits a frame at the wrap, which a `Deque[u8; N]` does.
-- [can-nv](https://novo-lang.org/packages/can-nv) names this package as a
-  dependency for its transmit queue's bookkeeping. Both are interfaces, so
-  nothing breaks, and the family is what its bodies will use.
 
 ## Tests
 

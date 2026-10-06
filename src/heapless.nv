@@ -1,45 +1,23 @@
-// heapless — fixed-capacity collections for the tier that has no
-// allocator: a bounded vector, a bounded UTF-8 buffer, a bounded FIFO
-// and a bounded linear-probing map.
+// heapless — withdrawn.  Do not add this package.
 //
-// Every body is a `todo()`.  The signatures are the design, and the
-// compiler checks them as claims; see the README for the stamp.
+// The language's fixed-capacity collections replace the four types
+// declared here (SPEC section 14.8, "The heapless family"):
 //
-// WHAT A COLLECTION IS HERE.  Four `@value` structs of two or three
-// integers each, and the rules that keep them consistent.  A collection
-// holds the BOOKKEEPING and the caller holds the STORAGE: every
-// operation that would write answers the slot index to write at, and a
-// second, total function answers the collection after that write
-// happened.  So `push` is two calls rather than one:
+//     BoundedVec   ->  Vec[T; N]
+//     BoundedStr   ->  String[N]
+//     BoundedFifo  ->  Deque[T; N]
+//     BoundedMap   ->  Map[K, V; N]
 //
-//     match heapless.vec_push_at(v)
-//         None     => dropped = dropped + 1
-//         Some(at) =>
-//             buf = bytes.set_u8(buf, at, b)
-//             v = heapless.vec_pushed(v)
+// Each member of the family carries its capacity in its type, stores
+// its elements inline, answers `Err(Full)` at the capacity and writes
+// in place, so a push is one call.
 //
-// WHY IT IS SHAPED THAT WAY, and not as a container that owns its
-// elements.  A `@value` struct is built whole and replaced whole
-// (SPEC § 14.3) — there is no field assignment, not into a `[T; N]`
-// element either — so a vector that owned `[u8; 256]` would copy 256
-// bytes per push.  And a `@value` struct takes no type parameters and
-// there are no const generics, so `Vec<T, N>` has no spelling at all:
-// each element type and each capacity would be a type of its own.  The
-// README says what the language would need; this is what the language
-// has.
-//
-// The split is not only a retreat.  Because the storage is the
-// caller's, one `BoundedMap` serves keys of any type — the caller
-// compares them — and one `BoundedVec` serves a `Bytes` on a host and a
-// static region on a device, which a container owning `[T; N]` could
-// not do.
-//
-// NOTHING PANICS ON A FULL CONTAINER.  That is heapless's own rule and
-// it is kept: every operation that can fail answers `?Int`, `None`
-// meaning "there is no room" or "there is nothing there".  The item the
-// caller was going to write is still the caller's, because it was never
-// handed over — which is the novo-lang spelling of heapless returning
-// the item back in the `Err`.
+// The declarations below are the interface as it was published.  Every
+// body is a `todo()` and no body will be written.  They are kept
+// because they record what each function was specified to do.  A
+// collection held only its bookkeeping and the caller held the
+// storage, so every write was two calls: one answered the slot to
+// write at, and one answered the collection after that write.
 
 // ── The bounded vector ──────────────────────────────────────────────
 
