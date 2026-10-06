@@ -4,6 +4,16 @@ Every published version, newest first. This file is on the publish
 allow-list, so it travels with the package: it is the only thing a
 consumer deciding whether to upgrade can read.
 
+## 0.0.5 — 2026-10-06
+
+Still withdrawn, and now in the manifest as well as the README.  The
+interface is unchanged and every body is still `todo()`.
+
+- The manifest carries a `[withdrawn]` table.  The registry reports the
+  package as withdrawn and ranks it after every package that is not,
+  its page shows the reason in a banner, `novo pkg search` marks it,
+  and `novo pkg add heapless-nv` refuses it.
+
 ## 0.0.4 — 2026-10-06
 
 Still withdrawn.  This release puts the withdrawal at the top of the

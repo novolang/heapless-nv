@@ -1,6 +1,6 @@
 [package]
 name        = "heapless-nv"
-version     = "0.0.4"
+version     = "0.0.5"
 description = "WITHDRAWN: the language's Vec[T; N], String[N], Deque[T; N] and Map[K, V; N] (SPEC section 14.8) replace the four fixed-capacity collections this package described.  Published as an interface only; every body is a todo()."
 license     = "Apache-2.0"
 
@@ -27,6 +27,13 @@ novo        = ">= 0.8.9"
 
 [docs.pages]
 "README.md" = "Withdrawn: the language's fixed-capacity family replaces this package"
+
+# The withdrawal, in the form the toolchain and the registry read: the
+# registry reports the package as withdrawn, ranks it last and shows the
+# reason on its page, and `novo pkg add heapless-nv` refuses it.  No
+# `replaced_by`: the replacement is part of the language, not a package.
+[withdrawn]
+reason = "The language's Vec[T; N], String[N], Deque[T; N] and Map[K, V; N] (SPEC section 14.8) replace it."
 
 [dependencies]
 # None.  Bookkeeping over indices needs the language and nothing else,

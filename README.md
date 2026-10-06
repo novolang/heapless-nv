@@ -3,7 +3,7 @@
 **Status: WITHDRAWN.** Do not add this package. The four fixed-capacity
 collections it described are now part of the language: `Vec[T; N]`,
 `String[N]`, `Deque[T; N]` and `Map[K, V; N]`, specified in SPEC section 14.8
-("The heapless family"). Version 0.0.4 is the last release, and it exists to
+("The heapless family"). Version 0.0.5 is the last release, and it exists to
 say so.
 
 heapless-nv was published as an interface only. Every function was declared
